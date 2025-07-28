@@ -1,0 +1,4 @@
+(executable
+ (public_name rgen)
+ (name main)
+ (libraries rgen))
