@@ -5,12 +5,10 @@ let imbalance_score tree =
     match node with
     | Empty -> (0, 0)
     | Unary (_, child) ->
-        let lh, ls = dfs child in
-        let height = lh + 1 in
-        let imbalance = lh in
-        (* rhs is 0 for unary *)
-        let total_score = ls + imbalance in
-        (height, total_score)
+        let h, s = dfs child in
+        let imbalance = h in
+        let score = s + imbalance in
+        (1 + h, score)
     | Binary (_, left, right) ->
         let lh, ls = dfs left in
         let rh, rs = dfs right in
@@ -91,13 +89,12 @@ let to_dot_bust ?(pp_label = string_of_int) name tree =
   let oc = open_out name in
   let fmt = Format.formatter_of_out_channel oc in
   Format.fprintf fmt "digraph bust {@\n" ;
-  Format.fprintf fmt "  node [shape=circle];@\n" ;
   let rec visit = function
     | Empty -> ()
     | Unary (x, t1) as n -> (
         let id = get_id n in
-        Format.fprintf fmt "  node%d [label=\"%s\", shape=ellipse];@\n" id
-          (pp_label x) ;
+        Format.fprintf fmt "  node%d [label=\"%s\", shape=invtriangle];@\n"
+          id (pp_label x) ;
         match t1 with
         | Empty -> ()
         | _ ->
@@ -106,7 +103,7 @@ let to_dot_bust ?(pp_label = string_of_int) name tree =
             visit t1 )
     | Binary (x, t1, t2) as n -> (
         let id = get_id n in
-        Format.fprintf fmt "  node%d [label=\"%s\", shape=box];@\n" id
+        Format.fprintf fmt "  node%d [label=\"%s\", shape=house];@\n" id
           (pp_label x) ;
         ( match t1 with
         | Empty -> ()
@@ -146,12 +143,11 @@ let regexp_of_bust alphabet bust =
     if Random.bool () then Union (a, b) else Concat (a, b)
   in
   let rec aux = function
+    | Binary (_, Empty, Empty) | Unary (_, Empty) ->
+        Regexp.Letter (rand_letter ())
     | Unary (_, t) -> Regexp.Star (aux t)
     | Binary (_, l, r) -> rand_bin_op (aux l) (aux r)
-    | _ ->
-        (* leaf case: not Unary or Binary, and not Empty *)
-        (* This handles odd structures, treat as leaf if no children *)
-        Letter (rand_letter ())
+    | Empty -> Regexp.Letter (rand_letter ())
   in
   aux bust
 
@@ -246,5 +242,5 @@ let rec sample_tree n next_id =
       let right, next_id2 = sample_tree rsize next_id1 in
       (Binary (next_id, left, right), next_id2)
 
-(* Public API: generate random tree of given size *)
+(* generate uniformly random tree of given size *)
 let random_uniform_tree size = fst (sample_tree size 1)

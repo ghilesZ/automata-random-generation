@@ -29,10 +29,10 @@ let to_string ?alphabet letter r =
     | Union (r1, r2) as u ->
         (* If it's the entire alphabet, represent as "_" *)
         if is_sigma u then "_" else "(" ^ loop r1 ^ "|" ^ loop r2 ^ ")"
-    | Concat (r1, r2) -> loop r1 ^ "; " ^ loop r2
+    | Concat (r1, r2) -> loop r1 ^ "." ^ loop r2
     | Star r -> "(" ^ loop r ^ ")*"
   in
-  "[" ^ loop r ^ "]"
+  loop r
 
 let union r1 r2 =
   match (r1, r2) with

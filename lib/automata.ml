@@ -1,4 +1,4 @@
-(* Transition : (state, symbol) -> successor *)
+(* Transition : (state, symbol) -> successor, no epsilon transition allowed *)
 type ('a, 'b) transition = ('a * 'b, 'a) Hashtbl.t
 
 (* DFA *)
@@ -57,18 +57,18 @@ let to_dot ?pp_trans ?pp_state name dfa =
   Format.fprintf fmtoc "}@." ;
   close_out oc
 
-let to_png ?(verbose = false) ?(timeout = 2) ?(keep_dot = false) ?pp_trans
+let to_svg ?(verbose = false) ?(timeout = 2) ?(keep_dot = false) ?pp_trans
     ?pp_state name pta =
   let name =
-    if Filename.extension name = ".png" then Filename.chop_extension name
+    if Filename.extension name = ".svg" then Filename.chop_extension name
     else name
   in
   to_dot ?pp_state ?pp_trans name pta ;
   let cmd =
-    Format.asprintf "timeout %i dot -Tpng %s.dot -o %s.png" timeout name name
+    Format.asprintf "timeout %i dot -Tsvg %s.dot -o %s.svg" timeout name name
   in
   ( match Sys.command cmd with
-  | 0 -> if verbose then Format.printf "%s image saved in %s.png@." name name
+  | 0 -> if verbose then Format.printf "%s image saved in %s.svg@." name name
   | 124 -> Format.printf "%s image creation failed (timeout)\n" name
   | code ->
       Format.printf "%s image creation failed with exit code %d\n" name code
@@ -248,9 +248,8 @@ let determinize (nfa : (int, 'a option) t) : (int list, 'a) t =
 
 let minimize dfa : (int, 'a) t =
   let partition =
-    let finals = List.filter (fun s -> List.mem s dfa.finals) dfa.states in
-    let non_finals =
-      List.filter (fun s -> not (List.mem s dfa.finals)) dfa.states
+    let finals, non_finals =
+      List.partition (fun s -> List.mem s dfa.finals) dfa.states
     in
     [finals; non_finals]
   in

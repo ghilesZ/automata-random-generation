@@ -1,14 +1,5 @@
 open Ubtree
 
-let join_2_side_by_side img1 img2 output =
-  let cmd =
-    Format.asprintf "montage %s %s -tile 2x1 -geometry +0+0 %s" img1 img2
-      output
-  in
-  match Sys.command cmd with
-  | 0 -> Format.printf "Created combined image: %s\n" output
-  | code -> Format.printf "Command failed with exit code %d\n" code
-
 let time label f x =
   let start_time = Unix.gettimeofday () in
   let result = f x in
@@ -22,19 +13,16 @@ let generate_all ~(pp_trans : char -> string) ~suffix ~alphabet tree =
   to_png_bust (base "tree") tree ;
   let regexp = regexp_of_bust alphabet tree in
   Regexp.to_png (base "regexp") regexp ;
+  Format.printf "%s\n%!" (Regexp.to_string (String.make 1) regexp) ;
   let automata = time "Automata.of_regexp" Automata.of_regexp regexp in
-  Automata.to_png
+  Automata.to_svg
     ~pp_trans:(function
       | None -> Format.asprintf "ε" | Some c -> Format.asprintf "%c" c )
     (base "automata") automata ;
   let determinized = time "determinize" Automata.determinize automata in
-  Automata.to_png ~pp_trans (base "determinized") determinized ;
+  Automata.to_svg ~pp_trans (base "determinized") determinized ;
   let minimized = time "minimize" Automata.minimize determinized in
-  Automata.to_png ~pp_trans (base "minimized") minimized ;
-  join_2_side_by_side
-    (base "regexp" ^ ".png")
-    (base "minimized" ^ ".png")
-    (base "generations" ^ ".png") ;
+  Automata.to_svg ~pp_trans (base "minimized") minimized ;
   Format.printf "Imbalance: %f%%\n" (Ubtree.imbalance_percentage tree) ;
   Format.printf "Automata: %i nodes + %i transitions\n"
     (Automata.nb_states minimized)
@@ -55,7 +43,7 @@ let () =
       | Some s -> s
     else size
   in
-  let alphabet = ['a'; 'b'; 'c'; 'd'] in
+  let alphabet = ['a'; 'b'] in
   Format.printf "\nUniform generation\n-------------------\n" ;
   let tree = Ubtree.random_uniform_tree size in
   generate_all ~pp_trans:(Format.sprintf "%c") ~suffix:"uniform" ~alphabet
