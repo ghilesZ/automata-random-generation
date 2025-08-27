@@ -132,7 +132,7 @@ let to_png_bust ?(verbose = false) ?(keep_dot = false) ?pp_label name tree =
     Format.asprintf "rm %s.dot" name |> Sys.command |> ignore ;
   if verbose then Format.printf "Tree saved in %s.png@." name
 
-let regexp_of_bust alphabet bust =
+let to_regexp alphabet bust =
   let rand_letter () =
     let len = List.length alphabet in
     if len = 0 then invalid_arg "alphabet must not be empty" ;

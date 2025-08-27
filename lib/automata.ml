@@ -262,8 +262,7 @@ let minimize dfa : (int, 'a) t =
               List.map
                 (fun a ->
                   match transit dfa s a with
-                  | Some dest ->
-                      find_index (fun p -> List.mem dest p) partition
+                  | Some dest -> find_index (List.mem dest) partition
                   | None -> -1 )
                 dfa.alphabet
             in
@@ -276,8 +275,11 @@ let minimize dfa : (int, 'a) t =
       List.map snd by_trans
     in
     let new_partition = List.flatten (List.map split_block partition) in
-    let normalize p = List.map (List.sort compare) p |> List.sort compare in
-    if normalize new_partition = normalize partition then normalize partition
+    let normalize p =
+      List.rev_map (List.sort compare) p |> List.sort compare
+    in
+    let normalized = normalize partition in
+    if normalize new_partition = normalized then normalized
     else refine new_partition
   in
   let minimized_partition = refine partition in
