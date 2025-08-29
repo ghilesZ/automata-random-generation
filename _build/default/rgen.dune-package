@@ -1,0 +1,4 @@
+(lang dune 3.17)
+(name rgen)
+(sections (lib .) (bin ../../bin) (doc ../../doc/rgen))
+(files (lib (META dune-package opam)) (bin (rgen)) (doc (README.md)))
