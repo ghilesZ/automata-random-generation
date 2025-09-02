@@ -220,6 +220,9 @@ let rec sample_tree n next_id =
       !acc
     in
     let total = Z.add count_unary count_binary in
+    (* Format.printf "probability binary = %f\n%!" *)
+    (*   (Q.div (Q.of_bigint count_binary) (Q.of_bigint total) |> Q.to_float) ; *)
+    (* assert (1 < 0) ; *)
     let r =
       Q.mul (Q.of_bigint total) (Q.of_float (Random.float 1.)) |> Q.to_bigint
     in

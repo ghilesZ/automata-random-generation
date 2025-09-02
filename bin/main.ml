@@ -77,10 +77,19 @@ let generate_all ~(pp_trans : char -> string) ~suffix ~alphabet tree =
       (Automata.nb_transitions minimized) ;
   minimized
 
+let simpson hist =
+  let total = List.fold_left (fun acc (_, count) -> acc + count) 0 hist in
+  hist
+  |> List.fold_left
+       (fun acc (_, count) ->
+         let p = float count /. float total in
+         acc +. (p *. p) )
+       0.0
+
 let () =
   Random.self_init () ;
   parse_args () ;
-  let p_bin = 0.8 in
+  let p_bin = 0.85 in
   let alphabet = ['a'; 'b'] in
   let generator () =
     if !uniform then
@@ -102,12 +111,21 @@ let () =
       | Some n -> Hashtbl.replace hist automaton (n + 1)
     done ;
     let hist = hist |> Hashtbl.to_seq |> List.of_seq in
-    let hist = List.sort (fun (_, c1) (_, c2) -> compare c1 c2) hist in
-    List.iter
-      (fun (automaton, count) ->
-        Format.printf
-          "Automaton with %d states and %d transitions: %d times\n"
-          (Automata.nb_states automaton)
-          (Automata.nb_transitions automaton)
-          count )
-      hist )
+    let hist =
+      List.sort
+        (fun (a1, c1) (a2, c2) ->
+          compare
+            (c1, Automata.nb_states a2, Automata.nb_transitions a2)
+            (c2, Automata.nb_states a1, Automata.nb_transitions a1) )
+        hist
+    in
+    (* List.iter *)
+    (*   (fun (automaton, count) -> *)
+    (*     Format.printf "%d states, %d transitions: %d times\n" *)
+    (*       (Automata.nb_states automaton) *)
+    (*       (Automata.nb_transitions automaton) *)
+    (*       count ) *)
+    (*   hist ; *)
+    let richness = List.length hist in
+    Format.printf "simpson index: %f\n" (simpson hist) ;
+    Format.printf "variety: %f\n" (float richness /. float !histogram) )
