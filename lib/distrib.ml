@@ -43,9 +43,24 @@ let most_common tbl =
   |> List.sort (fun (_, c1) (_, c2) -> compare c2 c1)
   |> function [] -> None | hd :: _ -> Some hd
 
-(* you’d need a small plotting backend; placeholder *)
-let to_svg_histogram filename pp_elt tbl =
+let collapse_after x dist =
+  let rec aux i acc rest = function
+    | [] -> (List.rev acc, rest)
+    | ((_, _) as h) :: t ->
+        if i < x then aux (i + 1) (h :: acc) rest t
+        else aux (i + 1) acc (h :: rest) t
+  in
+  let prefix, suffix = aux 0 [] [] dist in
+  match suffix with
+  | [] -> prefix
+  | (v, c) :: t ->
+      let total = c + List.fold_left (fun acc (_, c) -> acc + c) 0 t in
+      prefix @ [(v, total)]
+
+let to_svg_histogram ?first:(f = 100) filename pp_elt tbl =
   let hist = to_list tbl in
+  let hist = List.sort (fun (_e1, c1) (_e2, c2) -> compare c2 c1) hist in
+  let hist = collapse_after f hist in
   if hist = [] then invalid_arg "to_svg_histogram: empty histogram"
   else
     let max_count = List.fold_left (fun acc (_, c) -> max acc c) 0 hist in
@@ -61,28 +76,29 @@ let to_svg_histogram filename pp_elt tbl =
     Format.fprintf fmt
       "<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d'>@."
       width height ;
-    List.sort (fun (_e1, c1) (_e2, c2) -> compare c2 c1) hist
-    |> List.iteri (fun i (elt, count) ->
-           let x = i * (bar_width + bar_spacing) in
-           let bar_h = int_of_float (float count *. scale) in
-           let y = height - bar_h - 20 in
-           (* draw bar *)
-           Format.fprintf fmt
-             "<rect x='%d' y='%d' width='%d' height='%d' \
-              fill='steelblue'/>@."
-             x y bar_width bar_h ;
-           (* draw count above bar *)
-           Format.fprintf fmt
-             "<text x='%d' y='%d' font-size='12' \
-              text-anchor='middle'>%d</text>@."
-             (x + (bar_width / 2))
-             (y - 5) count ;
-           (* draw label below bar *)
-           Format.fprintf fmt
-             "<text x='%d' y='%d' font-size='12' \
-              text-anchor='middle'>%a</text>@."
-             (x + (bar_width / 2))
-             (height - 5) pp_elt elt ) ;
+    List.iteri
+      (fun i (elt, count) ->
+        if i <= f && count > 0 then (
+          let x = i * (bar_width + bar_spacing) in
+          let bar_h = int_of_float (float count *. scale) in
+          let y = height - bar_h - 20 in
+          (* draw bar *)
+          Format.fprintf fmt
+            "<rect x='%d' y='%d' width='%d' height='%d' fill='steelblue'/>@."
+            x y bar_width bar_h ;
+          (* draw count above bar *)
+          Format.fprintf fmt
+            "<text x='%d' y='%d' font-size='12' \
+             text-anchor='middle'>%d</text>@."
+            (x + (bar_width / 2))
+            (y - 5) count ;
+          (* draw label below bar *)
+          Format.fprintf fmt
+            "<text x='%d' y='%d' font-size='12' \
+             text-anchor='middle'>%a</text>@."
+            (x + (bar_width / 2))
+            (height - 5) pp_elt elt ) )
+      hist ;
     Format.fprintf fmt "</svg>@." ;
     close_out oc
 

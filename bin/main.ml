@@ -23,7 +23,7 @@ let parse_args () =
   let speclist =
     [ ("-time", Arg.Set show_time, "Show timing information")
     ; ("-verbose", Arg.Set verbose, "Prints some statistics)")
-    ; ("-svg", Arg.Set verbose, "Prints some statistics)")
+    ; ("-svg", Arg.Set svg, "Prints some statistics)")
     ; ( "-keep"
       , Arg.Set keep_intermediate
       , "Keep intermediate outputs (png/svg)" )
@@ -49,14 +49,15 @@ let time label f x =
 
 let wrap label f x = if !show_time then time label f x else f x
 
+let base suffix = if suffix = "" then Fun.id else fun s -> s ^ "_" ^ suffix
+
 let generate_all ~(pp_trans : char -> string) ~suffix ~alphabet tree =
   if !verbose then
     Format.printf
       "Generation using %s method\n------------------------------\n" suffix ;
-  let base = if suffix = "" then Fun.id else fun s -> s ^ "_" ^ suffix in
-  if !keep_intermediate then Ubtree.to_png_bust (base "tree") tree ;
+  if !keep_intermediate then Ubtree.to_png_bust (base suffix "tree") tree ;
   let regexp = Ubtree.to_regexp alphabet tree in
-  if !keep_intermediate then Regexp.to_png (base "regexp") regexp ;
+  if !keep_intermediate then Regexp.to_png (base suffix "regexp") regexp ;
   if !verbose then
     Format.printf "Regexp: %s\n%!" (Regexp.to_string (String.make 1) regexp) ;
   let automata = wrap "Automata.of_regexp" Automata.of_regexp regexp in
@@ -64,12 +65,11 @@ let generate_all ~(pp_trans : char -> string) ~suffix ~alphabet tree =
     Automata.to_svg
       ~pp_trans:(function
         | None -> Format.asprintf "ε" | Some c -> Format.asprintf "%c" c )
-      (base "automata") automata ;
+      (base suffix "automata") automata ;
   let determinized = wrap "determinize" Automata.determinize automata in
   if !keep_intermediate then
-    Automata.to_svg ~pp_trans (base "determinized") determinized ;
+    Automata.to_svg ~pp_trans (base suffix "determinized") determinized ;
   let minimized = wrap "minimize" Automata.minimize determinized in
-  if !svg then Automata.to_svg ~pp_trans (base "minimized") minimized ;
   if !verbose then
     Format.printf "Imbalance: %f%%\nAutomata: %i nodes + %i transitions\n"
       (Ubtree.imbalance_percentage tree)
@@ -82,17 +82,18 @@ let () =
   parse_args () ;
   let p_bin = 0.85 in
   let alphabet = ['a'; 'b'] in
+  let pp_trans = Format.sprintf "%c" in
+  let suffix = if !uniform then "uniform" else "balanced" in
   let generator () =
     if !uniform then
       let tree = Ubtree.random_uniform_tree !size in
-      generate_all ~pp_trans:(Format.sprintf "%c") ~suffix:"uniform"
-        ~alphabet tree
+      generate_all ~pp_trans:(Format.sprintf "%c") ~suffix ~alphabet tree
     else
       let tree = Ubtree.random_bust_of_size p_bin !size in
-      generate_all ~pp_trans:(Format.sprintf "%c") ~suffix:"balanced"
-        ~alphabet tree
+      generate_all ~pp_trans:(Format.sprintf "%c") ~suffix ~alphabet tree
   in
-  generator () |> ignore ;
+  if !svg then
+    Automata.to_svg ~pp_trans (base suffix "minimized") (generator ()) ;
   let gen () = generator () |> Automata.normalize in
   if !histogram > 0 then (
     let hist = Distrib.histogram gen !histogram in
@@ -105,4 +106,10 @@ let () =
       (float (100 * count) /. float !histogram) ;
     Format.printf "richness: %i\n" richness ;
     Format.printf "variety: %f\n" (float richness /. float !histogram) ;
-    Format.printf "simpson index: %f\n" (Distrib.simpson hist) )
+    Format.printf "simpson index: %f\n" (Distrib.simpson hist) ;
+    if !svg then
+      Distrib.to_svg_histogram "histogram"
+        (fun fmt a ->
+          Format.fprintf fmt "%s"
+            (Automata.to_regexp a |> Regexp.to_string (Format.sprintf "%c")) )
+        hist )
