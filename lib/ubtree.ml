@@ -187,7 +187,7 @@ let count_trees =
     | Some c -> c
     | None ->
         let result =
-          if n = 0 then Z.one
+          if n = 0 then Z.zero
           else
             let count_unary = aux (n - 1) in
             let count_binary =

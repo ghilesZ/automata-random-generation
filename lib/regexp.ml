@@ -6,33 +6,29 @@ type 'a t =
   | Concat of 'a t * 'a t
   | Star of 'a t
 
-let to_string ?alphabet letter r =
-  let alphabet = Option.map (List.sort compare) alphabet in
-  (* Collects all letters from a union operation *)
-  let rec collect = function
-    | Union (r1, r2) -> collect r1 @ collect r2
-    | Letter c -> [c]
-    | _ -> raise Exit
+let to_string letter r =
+  (* Precedence levels: Union=1, Concat=2, Star/Atoms=3 *)
+  let prec = function
+    | Empty | Epsilon | Letter _ -> 3
+    | Star _ -> 3
+    | Concat _ -> 2
+    | Union _ -> 1
   in
-  (* Checks if a union of letters matches the provided alphabet *)
-  let is_sigma union =
-    try
-      match alphabet with
-      | Some a -> List.sort compare (collect union) = a
-      | None -> false
-    with Exit -> false
-  in
-  let rec loop = function
+  let rec loop ctx = function
     | Empty -> "empty"
     | Epsilon -> "ε"
     | Letter c -> letter c
     | Union (r1, r2) as u ->
-        (* If it's the entire alphabet, represent as "_" *)
-        if is_sigma u then "_" else "(" ^ loop r1 ^ "|" ^ loop r2 ^ ")"
-    | Concat (r1, r2) -> loop r1 ^ "." ^ loop r2
-    | Star r -> "(" ^ loop r ^ ")*"
+        let s = loop 1 r1 ^ "|" ^ loop 1 r2 in
+        if prec u < ctx then "(" ^ s ^ ")" else s
+    | Concat (r1, r2) as u ->
+        let s = loop 2 r1 ^ loop 2 r2 in
+        if prec u < ctx then "(" ^ s ^ ")" else s
+    | Star r as u ->
+        let s = loop 3 r ^ "*" in
+        if prec u < ctx then "(" ^ s ^ ")" else s
   in
-  loop r
+  loop 0 r
 
 let union r1 r2 =
   match (r1, r2) with

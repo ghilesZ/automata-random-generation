@@ -58,7 +58,7 @@ let generate_all ~(pp_trans : char -> string) ~suffix ~alphabet tree =
   let regexp = Ubtree.to_regexp alphabet tree in
   if !keep_intermediate then Regexp.to_png (base "regexp") regexp ;
   if !verbose then
-    Format.printf "%s\n%!" (Regexp.to_string (String.make 1) regexp) ;
+    Format.printf "Regexp: %s\n%!" (Regexp.to_string (String.make 1) regexp) ;
   let automata = wrap "Automata.of_regexp" Automata.of_regexp regexp in
   if !keep_intermediate then
     Automata.to_svg
@@ -115,10 +115,11 @@ let () =
       List.sort
         (fun (a1, c1) (a2, c2) ->
           compare
-            (c1, Automata.nb_states a2, Automata.nb_transitions a2)
-            (c2, Automata.nb_states a1, Automata.nb_transitions a1) )
+            (c2, Automata.nb_states a2, Automata.nb_transitions a2)
+            (c1, Automata.nb_states a1, Automata.nb_transitions a1) )
         hist
     in
+    let most_present, count = List.hd hist in
     (* List.iter *)
     (*   (fun (automaton, count) -> *)
     (*     Format.printf "%d states, %d transitions: %d times\n" *)
@@ -127,5 +128,11 @@ let () =
     (*       count ) *)
     (*   hist ; *)
     let richness = List.length hist in
-    Format.printf "simpson index: %f\n" (simpson hist) ;
-    Format.printf "variety: %f\n" (float richness /. float !histogram) )
+    let most_present_regexp = Automata.to_regexp most_present in
+    Format.printf "Most common language : %s\n"
+      (Regexp.to_string (Format.sprintf "%c") most_present_regexp) ;
+    Format.printf "Appearing %.2f%% of the time\n"
+      (float (100 * count) /. float !histogram) ;
+    Format.printf "richness: %i\n" richness ;
+    Format.printf "variety: %f\n" (float richness /. float !histogram) ;
+    Format.printf "simpson index: %f\n" (simpson hist) )

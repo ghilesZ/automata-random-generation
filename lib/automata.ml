@@ -331,3 +331,98 @@ let minimize dfa : (int, 'a) t =
             dfa.alphabet )
     state_ids ;
   {states; alphabet= dfa.alphabet; transitions; initial; finals}
+
+type 'a state = Real of 'a | Fake of int
+
+let statify dfa =
+  let mk_real x = Real x in
+  let transitions = Hashtbl.create (Hashtbl.length dfa.transitions) in
+  Hashtbl.iter
+    (fun (s1, c) s2 -> Hashtbl.add transitions (mk_real s1, c) (mk_real s2))
+    dfa.transitions ;
+  { alphabet= dfa.alphabet
+  ; states= List.map mk_real dfa.states
+  ; initial= mk_real dfa.initial
+  ; finals= List.map mk_real dfa.finals
+  ; transitions }
+
+let to_regexp (dfa : ('a, 'b) t) : 'b Regexp.t =
+  let open Regexp in
+  (* encapsulate state type within a polymorphic type to be able to spawn fake states *)
+  let dfa = statify dfa in
+  (* Create a copy of the DFA, adding a fake initial and final state *)
+  let fake_initial = Fake 1 in
+  let fake_final = Fake 2 in
+  let new_states = fake_initial :: fake_final :: dfa.states in
+  let new_transitions = Hashtbl.create (Hashtbl.length dfa.transitions) in
+  (* copy transitions *)
+  Hashtbl.iter
+    (fun (start, symbol) dest ->
+      Hashtbl.add new_transitions (start, Some symbol) dest )
+    dfa.transitions ;
+  (* add ε-transition from fake_initial to original initial state *)
+  Hashtbl.add new_transitions (fake_initial, None) dfa.initial ;
+  (* add ε-transition from original final states to fake_final *)
+  List.iter
+    (fun final_state ->
+      Hashtbl.add new_transitions (final_state, None) fake_final )
+    dfa.finals ;
+  (* Initialize regexps with transitions (including epsilon transitions) *)
+  let regexps = Hashtbl.create 10 in
+  Hashtbl.iter
+    (fun (start, symbol) dest ->
+      let re = match symbol with None -> Epsilon | Some s -> Letter s in
+      let key = (start, dest) in
+      let existing =
+        match Hashtbl.find_opt regexps key with
+        | Some r -> union r re
+        | None -> re
+      in
+      Hashtbl.replace regexps key existing )
+    new_transitions ;
+  (* Ensure all state pairs are initialized *)
+  List.iter
+    (fun i ->
+      List.iter
+        (fun j ->
+          if not (Hashtbl.mem regexps (i, j)) then
+            Hashtbl.add regexps (i, j) Empty )
+        new_states )
+    new_states ;
+  (* Eliminate all intermediate states *)
+  let eliminate_state state =
+    List.iter
+      (fun i ->
+        List.iter
+          (fun j ->
+            if i <> state && j <> state then
+              let rij =
+                Hashtbl.find_opt regexps (i, j)
+                |> Option.value ~default:Empty
+              in
+              let rik =
+                Hashtbl.find_opt regexps (i, state)
+                |> Option.value ~default:Empty
+              in
+              let rkk =
+                Hashtbl.find_opt regexps (state, state)
+                |> Option.value ~default:Empty
+              in
+              let rkj =
+                Hashtbl.find_opt regexps (state, j)
+                |> Option.value ~default:Empty
+              in
+              let star_rkk = if rkk = Empty then Epsilon else Star rkk in
+              let new_re = union rij (concat rik (concat star_rkk rkj)) in
+              Hashtbl.replace regexps (i, j) new_re )
+          new_states )
+      new_states
+  in
+  List.iter eliminate_state
+    (List.filter (fun s -> s <> fake_initial && s <> fake_final) new_states) ;
+  (* The final regular expression is the one from fake_initial to fake_final *)
+  let final_re =
+    Hashtbl.find_opt regexps (fake_initial, fake_final)
+    |> Option.value ~default:Empty
+  in
+  final_re
