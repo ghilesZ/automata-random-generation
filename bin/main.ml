@@ -77,15 +77,6 @@ let generate_all ~(pp_trans : char -> string) ~suffix ~alphabet tree =
       (Automata.nb_transitions minimized) ;
   minimized
 
-let simpson hist =
-  let total = List.fold_left (fun acc (_, count) -> acc + count) 0 hist in
-  hist
-  |> List.fold_left
-       (fun acc (_, count) ->
-         let p = float count /. float total in
-         acc +. (p *. p) )
-       0.0
-
 let () =
   Random.self_init () ;
   parse_args () ;
@@ -102,32 +93,11 @@ let () =
         ~alphabet tree
   in
   generator () |> ignore ;
+  let gen () = generator () |> Automata.normalize in
   if !histogram > 0 then (
-    let hist = Hashtbl.create 10 in
-    for _ = 1 to !histogram do
-      let automaton = generator () |> Automata.normalize in
-      match Hashtbl.find_opt hist automaton with
-      | None -> Hashtbl.replace hist automaton 1
-      | Some n -> Hashtbl.replace hist automaton (n + 1)
-    done ;
-    let hist = hist |> Hashtbl.to_seq |> List.of_seq in
-    let hist =
-      List.sort
-        (fun (a1, c1) (a2, c2) ->
-          compare
-            (c2, Automata.nb_states a2, Automata.nb_transitions a2)
-            (c1, Automata.nb_states a1, Automata.nb_transitions a1) )
-        hist
-    in
-    let most_present, count = List.hd hist in
-    (* List.iter *)
-    (*   (fun (automaton, count) -> *)
-    (*     Format.printf "%d states, %d transitions: %d times\n" *)
-    (*       (Automata.nb_states automaton) *)
-    (*       (Automata.nb_transitions automaton) *)
-    (*       count ) *)
-    (*   hist ; *)
-    let richness = List.length hist in
+    let hist = Distrib.histogram gen !histogram in
+    let most_present, count = Distrib.most_common hist |> Option.get in
+    let richness = Distrib.richness hist in
     let most_present_regexp = Automata.to_regexp most_present in
     Format.printf "Most common language : %s\n"
       (Regexp.to_string (Format.sprintf "%c") most_present_regexp) ;
@@ -135,4 +105,4 @@ let () =
       (float (100 * count) /. float !histogram) ;
     Format.printf "richness: %i\n" richness ;
     Format.printf "variety: %f\n" (float richness /. float !histogram) ;
-    Format.printf "simpson index: %f\n" (simpson hist) )
+    Format.printf "simpson index: %f\n" (Distrib.simpson hist) )
