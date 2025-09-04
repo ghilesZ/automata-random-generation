@@ -20,7 +20,7 @@ dune exec ./bin/main.exe -- [options]
   Show timing information for each step (tree → regexp → automaton → determinization → minimization).
 
 * `-verbose`
-  Print detailed statistics about generated automata (e.g., number of states, transitions, imbalance).
+  Print details about the generation process and the generated automata (e.g., number of states, transitions, imbalance).
 
 * `-svg`
   Output the minimized automaton as an SVG file.
@@ -59,7 +59,7 @@ dune exec ./bin/main.exe -- [options]
 For example, running:
 
 ```bash
-./program -histogram 1000 -size 12 -time -verbose
+dune exec ./bin/main.exe -- -histogram 1000 -size 12 -time -verbose
 ```
 
 might print:
@@ -89,19 +89,19 @@ simpson index: 0.123456
 * Generate and visualize a single random automaton:
 
   ```bash
-  ./program -svg -size 15
+  dune exec ./bin/main.exe -- -svg -size 15
   ```
 
 * Benchmark the distribution of languages with uniform sampling:
 
   ```bash
-  ./program -uniform -histogram 500
+  dune exec ./bin/main.exe -- -uniform -histogram 500
   ```
 
 * Collect statistics with verbose output:
 
   ```bash
-  ./program -verbose -histogram 1000
+  dune exec ./bin/main.exe -- -verbose -histogram 1000
   ```
 
 ---
