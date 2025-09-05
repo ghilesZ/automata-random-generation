@@ -57,7 +57,7 @@ let collapse_after x dist =
       let total = c + List.fold_left (fun acc (_, c) -> acc + c) 0 t in
       prefix @ [(v, total)]
 
-let to_svg_histogram ?first:(f = 100) filename pp_elt tbl =
+let to_svg_histogram ?first:(f = 15) filename pp_elt tbl =
   let hist = to_list tbl in
   let hist = List.sort (fun (_e1, c1) (_e2, c2) -> compare c2 c1) hist in
   let hist = collapse_after f hist in
@@ -74,7 +74,8 @@ let to_svg_histogram ?first:(f = 100) filename pp_elt tbl =
     let oc = open_out (filename ^ ".svg") in
     let fmt = Format.formatter_of_out_channel oc in
     Format.fprintf fmt
-      "<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d'>@."
+      "<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d'><rect \
+       width='100%%' height='100%%' fill='white'/>@."
       width height ;
     List.iteri
       (fun i (elt, count) ->

@@ -92,24 +92,26 @@ let () =
       let tree = Ubtree.random_bust_of_size p_bin !size in
       generate_all ~pp_trans:(Format.sprintf "%c") ~suffix ~alphabet tree
   in
-  if !svg then
-    Automata.to_svg ~pp_trans (base suffix "minimized") (generator ()) ;
   let gen () = generator () |> Automata.normalize in
   if !histogram > 0 then (
     let hist = Distrib.histogram gen !histogram in
     let most_present, count = Distrib.most_common hist |> Option.get in
-    let richness = Distrib.richness hist in
+    let diversity = Distrib.richness hist in
     let most_present_regexp = Automata.to_regexp most_present in
     Format.printf "Most common language : %s\n"
       (Regexp.to_string (Format.sprintf "%c") most_present_regexp) ;
     Format.printf "Appearing %.2f%% of the time\n"
       (float (100 * count) /. float !histogram) ;
-    Format.printf "richness: %i\n" richness ;
-    Format.printf "variety: %f\n" (float richness /. float !histogram) ;
-    Format.printf "simpson index: %f\n" (Distrib.simpson hist) ;
+    Format.printf "Diversity: %i\n" diversity ;
+    Format.printf "Variability: %.2f\n" (float diversity /. float !histogram) ;
+    Format.printf "Simpson index: %f\n" (Distrib.simpson hist) ;
     if !svg then
       Distrib.to_svg_histogram "histogram"
         (fun fmt a ->
           Format.fprintf fmt "%s"
             (Automata.to_regexp a |> Regexp.to_string (Format.sprintf "%c")) )
         hist )
+  else
+    let automaton = generator () in
+    if !svg then
+      Automata.to_svg ~pp_trans (base suffix "minimized") automaton
